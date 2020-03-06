@@ -23,7 +23,7 @@ class Symbol(object):
 
   def ppf(self):
     return self.pform()
-  
+
   def mismatch(self, formula, subformulas, bound,free, other_errors,rule_type):
     if not isinstance(formula, type(self)): # pattern can be superclass
       return [ (self, formula, copy(bound)) ]  # formula is not a Symbol
@@ -35,7 +35,7 @@ class Symbol(object):
   def equal(self, other):
     'Structural equality,== tests instance identity. Dont redefine __eq__ now'
     return type(self) == type(other) and self.name == other.name
-    
+
   def subst(self, substitutions):
     for key, value in substitutions.items():
       if self.equal(key):
@@ -89,7 +89,7 @@ class Compound(object):
   Base class for syntax elements with one or more arguments:
   Functions, relations, formulas, logical operators, quantifiers, ...
   """
-  def __init__(self, *args): 
+  def __init__(self, *args):
     self.args = list(args)   # mutable but update only in copied instance
 
   # pform prints class name.  same pform is used by all subclasses
@@ -98,7 +98,7 @@ class Compound(object):
     arglist = ','.join([ a.pform() for a in self.args ])
     return '%s(%s)' % (name, arglist)
 
-  # ppf prints class name unless subclass prints symbol  
+  # ppf prints class name unless subclass prints symbol
   def ppf(self):
     return self.pform()
 
@@ -108,17 +108,17 @@ class Compound(object):
 
   def mismatch(self, formula, subformulas, bound,free, other_errors,rule_type):
     if isinstance(formula, Let) and not isinstance(self, Let):
-      return Compound.mismatch(self, formula.formula, subformulas, bound, 
+      return Compound.mismatch(self, formula.formula, subformulas, bound,
                              free, other_errors, rule_type)
     elif not isinstance(formula, type(self)): # pattern can be superclass
       return [(self, formula, copy(bound))] # wrong formula class, outermost op
     else:
       mismatches = []
       for i in range(len(formula.args)):
-        mm = self.args[i].mismatch(formula.args[i], subformulas, 
+        mm = self.args[i].mismatch(formula.args[i], subformulas,
                                             bound,free, other_errors,rule_type)
         if other_errors:
-          return False 
+          return False
         else:
           mismatches += mm
       return mismatches
@@ -175,7 +175,7 @@ class Prefix(Compound):
     fmt = '%s%s'      # no parens
     if isinstance(self.args[0], Infix): # ... and higher arities
       fmt = '%s(%s)'  # parens
-    return fmt % (self.symbol, self.args[0].ppf())  
+    return fmt % (self.symbol, self.args[0].ppf())
 
 class Infix(Compound):
   """
@@ -231,7 +231,7 @@ class Quantifier(Compound, Formula):
   def __init__(self, *args):
     check_count(self, 2, *args)
     check_type(self, Variable, args[0])
-    check_type(self, Formula, args[1]) 
+    check_type(self, Formula, args[1])
     Compound.__init__(self, *args)
     self.bound = self.args[0]     # variable
     self.formula = self.args[1]   # formula
@@ -248,22 +248,22 @@ class Quantifier(Compound, Formula):
 
   def free(self):
     return [ v for v in self.formula.free() if not v == self.bound ]
-                  
+
   def mismatch(self, formula, subformulas, bound,free, other_errors,rule_type):
     bound.append(self.bound)
-    return Compound.mismatch(self, formula, subformulas, bound, free, 
+    return Compound.mismatch(self, formula, subformulas, bound, free,
                              other_errors, rule_type)
-   
+
   def subst(self, substitutions):
     qformcopy = Compound.subst(self, substitutions) # rebinds args only
     qformcopy.bound = qformcopy.args[0]   # variable
-    qformcopy.formula = qformcopy.args[1] # formula    
+    qformcopy.formula = qformcopy.args[1] # formula
     return qformcopy
 
   def generate(self, subformulas, otherdata, other_errors):
     if self.bound in subformulas:
       # Ai, bound variable is in premises
-      bound = subformulas[self.bound]  
+      bound = subformulas[self.bound]
     else:
       # Ei, otherdata is a tuple, otherdata[0] is the dictionary {t1:v1}
       if len(otherdata) < 1 or not isinstance(otherdata[0], dict):
@@ -283,7 +283,7 @@ class Quantifier(Compound, Formula):
 # Meta-formulas
 
 # Values for rule_type used in nd proofs, checked in Meta-formula classes here
-# assumer, assumer case, discharger, other, unknown. 
+# assumer, assumer case, discharger, other, unknown.
 # Use short identifiers that don't conflict w/ variable names.
 ar, ac, dr, xr, xx = 'ar', 'ac', 'dr', 'xr', 'xx'
 
@@ -308,8 +308,8 @@ class New(Relation):
     return 'Let %s be arbitrary' % self.variable.ppf()
 
   def free(self):
-    return self.variable.free()  
-    
+    return self.variable.free()
+
   def mismatch(self, formula, subformulas, bound,free, other_errors,rule_type):
     if rule_type == ar: # assume step, check that variable is new
       if formula.variable in free:
@@ -317,7 +317,7 @@ class New(Relation):
           'Fail: variable %s already appears free in proof among %s' % \
              (formula.variable.ppf(), ppflist(free)))
         return False
-    return Compound.mismatch(self, formula, subformulas, bound, 
+    return Compound.mismatch(self, formula, subformulas, bound,
                              free, other_errors, rule_type)
     #return [] # nothing else to check, New step will never be used as premise
 
@@ -342,24 +342,24 @@ class Let(Quantifier):
     return 'Let %s satisfy %s' % (self.variable.ppf(), self.formula.ppf())
 
   def free(self):
-    return self.formula.free()  
-    
+    return self.formula.free()
+
   def mismatch(self, formula, subformulas, bound,free, other_errors,rule_type):
     # mismatch checks variable only in assume step where it is introduced
     if rule_type == ar: # assume step, check that variable is new
-      if formula.variable in free:  
+      if formula.variable in free:
         other_errors.append(
           'Fail: variable %s already appears free in proof among %s' % \
           (formula.variable.ppf(), ppflist(free)))
         return False
     #if isinstance(formula, Let): # this is just ar
     if rule_type == ar or rule_type == dr:
-      # match the entire Let pattern 
-      return Compound.mismatch(self, formula, subformulas, bound, 
+      # match the entire Let pattern
+      return Compound.mismatch(self, formula, subformulas, bound,
                              free, other_errors, rule_type)
     else:
       # just match the formula part of the Let pattern
-      return self.formula.mismatch(formula, subformulas, bound, 
+      return self.formula.mismatch(formula, subformulas, bound,
                              free, other_errors, rule_type)
 
 class Apply(Compound, Formula):
@@ -382,12 +382,12 @@ class Placeholder(Symbol):
 
   def mismatch(self, formula, subformulas, bound,free, other_errors,rule_type):
     if self in subformulas:
-      return subformulas[self].mismatch(formula, subformulas, 
+      return subformulas[self].mismatch(formula, subformulas,
                                         bound, free, other_errors, rule_type)
     else:
       subformulas.update({ self : formula })
-      return [] # formula matches this Placeholder 
-    
+      return [] # formula matches this Placeholder
+
 # Marked placeholders that appear where a particular argument type is required
 
 class FormulaPlaceholder(Placeholder, Formula):
@@ -426,8 +426,8 @@ class Subst(Symbol, Formula):
   def mismatch(self, formula, subformulas, bound,free, other_errors,rule_type):
     if self.pattern not in subformulas:
       subformulas.update({ self.pattern : formula })
-      return [] # formula matches this Placeholder 
-    else: 
+      return [] # formula matches this Placeholder
+    else:
     # self.pattern is premise P1. formula is conclusion, P1 with substitutions
     # First of each mismatches tuple is source subformula from P1 in premise
     # Second of tuple is replacement subformula from P1({*:*}) in conclusion
@@ -466,7 +466,7 @@ class Subst(Symbol, Formula):
           m_mismatches.append((source_subformula, replacement_subformula,
                                copy(bound))) # indicate failure
      return m_mismatches # nonempty indicates failure
-    
+
   def generate(self, subformulas, otherdata, other_errors):
     """
     Return formula generated by substituting subformulas into pattern (self),
@@ -477,16 +477,16 @@ class Subst(Symbol, Formula):
     for (k,v) in self.substitutions:
       # Handle all cases right here, not in subclasses SubstAll P1 and NotIn Q1
       # S1({t1:s1}) in sub, k is s1 term, v is t1 term
-      if k in subformulas and v in subformulas: 
+      if k in subformulas and v in subformulas:
         subst_pairs.append((subformulas[k], subformulas[v]))
       # Q1{{v2:None}) in Ee, k is bound variable v2, v is None, no subst needed
-      elif k in subformulas and not v: 
+      elif k in subformulas and not v:
         pass
       # In following case, term t1 and bound variable v1 both from otherdata
       # S1({t1:v1}) in Ei, k is term t1, v is bound variable v1
       elif k not in subformulas and v not in subformulas:
-        # otherdata has already been checked in Quantifier generate 
-        k,v = (otherdata[0].items())[0] 
+        # otherdata has already been checked in Quantifier generate
+        k,v = (otherdata[0].items())[0]
         subst_pairs.append((k,v))
       # In following cases, term t1 only is from otherdata
       elif len(otherdata) < 1 or not isinstance(otherdata[0],Term):
@@ -504,14 +504,14 @@ class Subst(Symbol, Formula):
 
 class SubstAll(Subst, Formula):
   """
-  Placeholder that also supports substitution of all occurences, 
+  Placeholder that also supports substitution of all occurences,
   as in A-Elimination:
     Ae  :  [ A(v1,P1(v1)), P1({v1:t1}) ],
   The mismatch method here checks that *all* occurrences are substituted.
   Needed for Ae, Ai, Ee rules.  Use base class for sub, Ei rules.
   """
   # In P1(v1), does *not* check that v1 occurs in P1
-  # SubstAll doesn't inherit any attributes from base class Subst 
+  # SubstAll doesn't inherit any attributes from base class Subst
   # but it does invoke Subst.__init__ here, and repeats Subst code in mismatch
   def __init__(self, *args):
     Subst.__init__(self, *args)
@@ -521,10 +521,10 @@ class SubstAll(Subst, Formula):
    # Next four lines appear in Subst and all its subclasses.
    if self.pattern not in subformulas:
       subformulas.update({ self.pattern : formula })
-      return [] # formula matches this Placeholder 
-   else: 
+      return [] # formula matches this Placeholder
+   else:
     # Call base class mismatch method to do most error checking
-    mismatches = Subst.mismatch(self, formula, subformulas, 
+    mismatches = Subst.mismatch(self, formula, subformulas,
                                bound, free, other_errors, rule_type)
     if mismatches or other_errors:
      return mismatches # must be error other than all occurrences not replaced
@@ -553,7 +553,7 @@ class SubstAll(Subst, Formula):
          return False
        elif other_errors:
          return False
-       else: 
+       else:
          return []
 
 class NotIn(Subst, Formula):
@@ -562,28 +562,28 @@ class NotIn(Subst, Formula):
   as used in E-Elimination rule, where Q1({v2:None}) says v2 is not free in Q1:
    Ee : [ E(v1, P1(v1)), [Let(v2,P1({v1:v2})), Q1({v2:None})], Q1({v2:None}) ]
   """
-  # NotIn doesn't inherit any attributes from base class Subst 
+  # NotIn doesn't inherit any attributes from base class Subst
   # but it does invoke Subst.__init__ here, and repeats Subst code in mismatch
   def __init__(self, *args):
     Subst.__init__(self, *args)
-    
+
   def mismatch(self, formula, subformulas, bound,free, other_errors,rule_type):
    # Next four lines appear in Subst and all its subclasses.
    if self.pattern not in subformulas:
       subformulas.update({ self.pattern : formula })
-      return [] # formula matches this Placeholder 
-   else: 
+      return [] # formula matches this Placeholder
+   else:
     for v_key, v_code in self.substitutions:
       # This code doesn't use v_code at all
       # Rule looks nice with Q1({v2:None}) but this code doesn't check for None
-      v = subformulas[v_key] 
+      v = subformulas[v_key]
       fvs = subformulas[self.pattern].free()
       if v in fvs:
         other_errors.append(
           'Fail: variable %s appears free in formula among %s' % \
              (v.ppf(), ppflist(fvs)))
         return False
-    return subformulas[self.pattern].mismatch(formula, subformulas, bound, 
+    return subformulas[self.pattern].mismatch(formula, subformulas, bound,
                                               free,other_errors,rule_type)
 
 
@@ -597,8 +597,8 @@ def check_count(self, count, *args):
   # return # uncomment this line to turn off argument count check
   n = len(args)
   if n != count:
-    raise SyntaxError, '%s requires %d arguments, found %d' % \
-      (self.__class__.__name__, count, n)
+    raise SyntaxError('%s requires %d arguments, found %d' % \
+      (self.__class__.__name__, count, n))
 
 def check_type(self, arg_type, *args):
   """
@@ -607,8 +607,8 @@ def check_type(self, arg_type, *args):
   # return # uncomment this line to turn off argument type check
   for i, a in enumerate(args):
     if not(isinstance(a, arg_type)):
-      raise TypeError, '%s argument %d, %s is %s, must be %s' % \
-        (self.__class__.__name__, i, a.ppf(), type(a), arg_type)
+      raise TypeError('%s argument %d, %s is %s, must be %s' % \
+        (self.__class__.__name__, i, a.ppf(), type(a), arg_type))
 
 def remove_dups(vs):
   'Return shallow copy of list with duplicates removed'
@@ -631,7 +631,7 @@ def ppfpairs(fpairs):
   Pretty-print list of formula pairs
   """
   return '{ %s }' % \
-    ', '.join([ '(%s, %s)' % (p.ppf(), f.ppf()) for p, f in fpairs 
+    ', '.join([ '(%s, %s)' % (p.ppf(), f.ppf()) for p, f in fpairs
                                                 if p and f ]) # Might be None
 
 def ppfdict(fdict):
