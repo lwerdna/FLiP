@@ -62,7 +62,7 @@ def check(formula_arg, rule, *premises_etc):
     global formula  # might be reassigned by Apply in call to check_rule
     formula = formula_arg
     if not isinstance(formula, Formula):
-      return 'Fail: %s is %s, must be Formula' % (formula, type(formula))
+      raise Exception('%s is %s, must be Formula' % (formula, type(formula)))
     premises = []
     premise_lines = []
     # classify rule
@@ -71,7 +71,7 @@ def check(formula_arg, rule, *premises_etc):
     otherdata = filter(lambda i: not isinstance(i, int), premises_etc)
     nrule, npremises = len(frule) - 1, len(premise_indices)
     if not nrule == npremises:
-      return 'Fail: requires %d premises, found %d' %(nrule,npremises)
+      raise Exception('requires %d premises, found %d' %(nrule,npremises))
     rule_type = xr             # other, neither assumer nor discharger
     if assumer(frule):
       rule_type = ar
@@ -83,7 +83,7 @@ def check(formula_arg, rule, *premises_etc):
     subproofs = {} # map to check that premises are in right subproof
     for index, line in enumerate(premise_indices):
       if not (0 <= line < len(steps)):
-        return 'Fail: no line %d for premise at index %d' % (line, index)
+        raise Exception('no line %d for premise at index %d' % (line, index))
       # unpack step tuple into named variables
       #  (...) = steps[line] doesn't work, must have stuple[5:] at the end
       stuple = steps[line]
@@ -97,21 +97,21 @@ def check(formula_arg, rule, *premises_etc):
       # Must use  frule_type from rule, not prem_rule_type from step in proof 
       if rule_type == dr and frule_type == ar \
           and ((not assumptions) or (prem_assump[1:] != assumptions[1:])):
-        return 'Fail: assumption at index %d, line %d not in scope for discharging rule'%(index,line)
+        raise Exception('assumption at index %d, line %d not in scope for discharging rule'%(index,line))
       # Premise assumption stack must be suffix of conclusion assumption stack 
       # Scope is OK if premise is at top level (its assumption stack is empty)
       # Slice with -0 first index means whole list, not empty suffix
       if rule_type != dr and \
            prem_assump and prem_assump != assumptions[-len(prem_assump):]:
-        return 'Fail: premise at index %d, line %d not in scope'%(index,line)
+        raise Exception('premise at index %d, line %d not in scope'%(index,line))
       # Check that premise is assumption, if that is required
       if frule_type == ar and not (prem_rule_type == ar or prem_rule_type == ac):
-        return 'Fail: premise at index %d, line %d not an assumption'%(index,line)
+        raise Exception('premise at index %d, line %d not an assumption'%(index,line))
       # Check that premises that should be in the same subproof, are indeed.
       if subproof > 0: # 0 is top level, not a subproof
         if subproof in subproofs:
           if not prem_assump_tup == subproofs[subproof]:
-            return 'Fail: premise at index %d, line %d not in same scope as assumption'%(index,line)
+            raise Exception('premise at index %d, line %d not in same scope as assumption'%(index,line))
         else:
           subproofs.update({ subproof: prem_assump_tup })
       premises += [ prem_formula ]
@@ -158,7 +158,7 @@ def check_rule(rule, premises, rule_type, otherdata):  # formula is global
     boundvars = [] # list of bound variables at entry to mismatch
     if isinstance(form, Apply): # can only occur when checking rule conclusion
       if subformulas == {}: #generate needs premises (subformulas) to work with
-        return 'Fail: cannot apply %s rule, must provide formula' % prn(rule)
+        raise Exception('cannot apply %s rule, must provide formula' % prn(rule))
       # generate formula from rule (pattern) and premises (subformulas)
       form = pattern.generate(subformulas, otherdata, other_errors)
       if other_errors:
@@ -166,8 +166,8 @@ def check_rule(rule, premises, rule_type, otherdata):  # formula is global
       formula = form # prepare to check that the generated formula is valid
     if pattern.mismatch(form, subformulas, boundvars, reduce(concat, freevars),
                         other_errors, rule_type): 
-      return 'Fail: %s does not match %s with %s' % \
-                 (form.ppf(),pattern.ppf(), ppfdict(subformulas))
+      raise Exception('%s does not match %s with %s' % \
+                 (form.ppf(),pattern.ppf(), ppfdict(subformulas)))
     elif other_errors:
       return other_errors[0] # for now there is just one string in list
   return '' # success

@@ -12,7 +12,7 @@ class Text(Formula):
   def __init__(self, *args):
     check_count(self, 1, *args)
     if not isinstance(args[0], str):
-      raise TypeError, 'argument %s is not a string' % text
+      raise TypeError('argument %s is not a string' % text)
     self.text = args[0]
 
   def pform(self):
